@@ -1,0 +1,13 @@
+*.html
+*.md
+*.pdf
+*.tex
+*projectile*
+bookmarks
+config.el
+elpa
+emojis
+network-security.data
+var
+custom.el
+transient

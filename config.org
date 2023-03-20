@@ -1,0 +1,700 @@
+#+TITLE: Emacs config
+
+
+#+STARTUP: content
+#+STARTUP: indent
+
+This is my Emacs configuration file. It's built using org-mode. GitHub can render org files and I've
+included a symlink README.org -> config.org so GitHub renders my config directly on the repository page.
+
+
+* Personal information
+#+BEGIN_SRC emacs-lisp
+(setq user-full-name "Xiuyu Li")
+(setq user-mail-address "nickleefly@gmail.com")
+#+END_SRC
+
+* Package management
+#+BEGIN_SRC emacs-lisp
+(load "package")
+(add-to-list 'package-archives '("gnu" . "https://elpa.gnu.org/packages/")) ;; installed by default
+(add-to-list 'package-archives '("nongnu" . "https://elpa.nongnu.org/nongnu/")) ;; installed by default from Emacs 28 onwards
+(add-to-list 'package-archives
+             '("melpa" . "http://melpa.org/packages/") t)
+(add-to-list 'package-archives
+             '("org" . "http://orgmode.org/elpa/") t)
+(package-initialize)
+#+END_SRC
+
+* Set up use-package
+#+BEGIN_SRC emacs-lisp
+(unless (package-installed-p 'use-package)
+  (package-refresh-contents)
+  (package-install 'use-package))
+(require 'use-package)
+(setq use-package-always-ensure t)
+#+END_SRC
+
+** evil-want-keybinding
+#+BEGIN_SRC emacs-lisp
+(use-package evil
+  :ensure t
+  :init
+  (setq evil-want-integration t) ;; This is optional since it's already set to t by default.
+  (setq evil-want-keybinding nil)
+  :config
+  (evil-mode 1))
+
+(use-package evil-collection
+  :after evil
+  :ensure t
+  :config
+  (evil-collection-init))
+#+END_SRC
+
+* Theme
+#+BEGIN_SRC emacs-lisp
+(setq my-theme 'nord)
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+    (use-package nord-theme
+      :ensure t)
+    (load-theme my-theme t)
+#+END_SRC
+
+* Powerline
+#+BEGIN_SRC emacs-lisp
+(use-package powerline
+  :ensure t
+  :config (powerline-center-evil-theme))
+#+END_SRC
+
+* Sane defaults
+** Interface
+*** Turn off UI elements
+#+BEGIN_SRC emacs-lisp
+(menu-bar-mode -1)
+(tool-bar-mode 0)
+#+END_SRC
+
+*** Say y or n instead of yes or no
+#+BEGIN_SRC emacs-lisp
+(defalias 'yes-or-no-p 'y-or-n-p)
+#+END_SRC
+
+*** Line numbers
+#+BEGIN_SRC emacs-lisp
+(global-linum-mode 1)
+(setq linum-format " %4d ")
+#+END_SRC
+
+[[https://github.com/tom-tan/hlinum-mode][hlinum-mode]] highlights the current line for linum
+#+BEGIN_SRC emacs-lisp
+(use-package hlinum
+  :ensure t)
+(set-face-foreground 'linum-highlight-face "white")
+(set-face-background 'linum-highlight-face nil)
+(hlinum-activate)
+#+END_SRC
+
+*** Show line and column in the mode-line
+#+BEGIN_SRC emacs-lisp
+(line-number-mode 1)
+(column-number-mode 1)
+#+END_SRC
+
+*** Reduce startup screen noise
+#+BEGIN_SRC emacs-lisp
+(setq inhibit-startup-message t)
+(setq initial-scratch-message nil)
+#+END_SRC
+
+*** Disable "Text is read-only" warning
+I find it annoying because it makes it hard to find the cursor after it appears. 
+Solution found [[https://emacs.stackexchange.com/questions/19742/is-there-a-way-to-disable-the-buffer-is-read-only-warning][on this StackOverflow question]].
+#+BEGIN_SRC emacs-lisp
+(defun my-command-error-function (data context caller)
+  "Ignore the buffer-read-only signal; pass the rest to the default handler."
+  (when (not (eq (car data) 'text-read-only))
+    (command-error-default-function data context caller)))
+
+(setq command-error-function #'my-command-error-function)
+#+END_SRC
+
+*** Enable usage of xclip
+#+BEGIN_SRC emacs-lisp
+(use-package xclip
+  :config (xclip-mode 1))
+#+END_SRC
+
+** Initialization
+*** Emacs system customizations go on a separate file
+#+BEGIN_SRC emacs-lisp
+(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+#+END_SRC
+
+*** Store all backup and autosave files in the tmp dir
+#+BEGIN_SRC emacs-lisp
+(defconst emacs-tmp-dir (expand-file-name (format "emacs%d" (user-uid)) temporary-file-directory))
+(setq backup-directory-alist
+    `((".*" . ,emacs-tmp-dir)))
+(setq auto-save-file-name-transforms
+    `((".*" ,emacs-tmp-dir t)))
+(setq auto-save-list-file-prefix
+    emacs-tmp-dir)
+#+END_SRC
+
+*** Do not create lockfiles - I'm the only user
+I'm not sure about the rationale behind this setting, but the auto-generated files are an annoyance, so they walk the plank.
+#+BEGIN_SRC emacs-lisp
+(setq create-lockfiles nil)
+#+END_SRC
+
+** Editing
+*** Unset keybindings
+Sorry Richard
+#+BEGIN_SRC emacs-lisp
+(defun add-kbd (key) (kbd key))
+(defvar keybindings-to-unset '("M-k" "M-j"))
+(dolist (key (mapcar 'add-kbd keybindings-to-unset))
+  (global-unset-key key))
+#+END_SRC
+
+*** Enable auto pairs
+#+BEGIN_SRC emacs-lisp
+(electric-pair-mode 1)
+#+END_SRC
+
+*** Enable visual-line-mode for word wrap
+#+BEGIN_SRC emacs-lisp
+(global-visual-line-mode t)
+#+END_SRC
+*** Standard indentation & no tabs
+#+BEGIN_SRC emacs-lisp
+(setq standard-indent 2)
+(setq-default indent-tabs-mode nil)
+#+END_SRC
+
+*** Drag stuff up and down
+#+BEGIN_SRC emacs-lisp
+(use-package drag-stuff
+  :ensure t)
+(drag-stuff-global-mode 1)
+(global-set-key (kbd "M-k") 'drag-stuff-up)
+(global-set-key (kbd "M-j") 'drag-stuff-down)
+#+END_SRC
+
+*** Highlight matching parens with zero delay
+#+BEGIN_SRC emacs-lisp
+(setq show-paren-delay 0)
+(show-paren-mode 1)
+#+END_SRC
+
+* Evil mode
+** Reset some defaults
+*** Restore default tab functionality in org-mode
+#+BEGIN_SRC emacs-lisp
+(setq evil-want-C-i-jump nil)
+#+END_SRC
+
+*** Restore default C-u functionality with Evil
+#+BEGIN_SRC emacs-lisp
+(setq evil-want-C-u-scroll t)
+#+END_SRC
+
+** Initialize Evil mode and friends
+#+BEGIN_SRC emacs-lisp
+  (use-package evil
+  :ensure t
+  :init
+  (setq evil-vsplit-window-right t)
+  :config
+  (evil-mode 1)
+#+END_SRC
+
+*** Leader
+#+BEGIN_SRC emacs-lisp
+(use-package evil-leader
+:ensure t
+:config
+(global-evil-leader-mode))
+#+END_SRC
+
+*** Surround mode
+#+BEGIN_SRC emacs-lisp
+(use-package evil-surround
+:ensure t
+:config
+(global-evil-surround-mode))
+#+END_SRC
+
+*** Org
+#+BEGIN_SRC emacs-lisp
+  (use-package evil-org
+  :ensure t
+  :after org
+  :config
+  (add-hook 'org-mode-hook 'evil-org-mode)
+  (add-hook 'evil-org-mode-hook
+  (lambda () (evil-org-set-key-theme))))
+#+END_SRC
+
+*** Indent textobject
+#+BEGIN_SRC emacs-lisp
+(use-package evil-indent-textobject
+:ensure t)
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+(use-package evil-commentary
+:ensure t
+:config
+(evil-commentary-mode)))
+#+END_SRC
+
+*** Cursor changer
+#+BEGIN_SRC emacs-lisp
+(use-package evil-terminal-cursor-changer
+:ensure t
+:init
+(setq evil-motion-state-cursor 'box)  ; █
+(setq evil-visual-state-cursor 'box)  ; █
+(setq evil-normal-state-cursor 'box)  ; █
+(setq evil-insert-state-cursor 'bar)  ; ⎸
+(setq evil-emacs-state-cursor  'hbar) ; _
+:config
+(evil-terminal-cursor-changer-activate))
+#+END_SRC
+
+** Make escape quit most things
+In Delete Selection mode, if the mark is active, just deactivate it then it takes a second `keyboard-quit` to abort the minibuffer.
+#+BEGIN_SRC emacs-lisp
+(defun minibuffer-keyboard-quit ()
+(interactive)
+(if (and delete-selection-mode transient-mark-mode mark-active)
+    (setq deactivate-mark  t)
+(when (get-buffer "*Completions*") (delete-windows-on "*Completions*"))
+(abort-recursive-edit)))
+(define-key evil-visual-state-map [escape] 'keyboard-quit)
+(define-key minibuffer-local-map [escape] 'minibuffer-keyboard-quit)
+(define-key minibuffer-local-ns-map [escape] 'minibuffer-keyboard-quit)
+(define-key minibuffer-local-completion-map [escape] 'minibuffer-keyboard-quit)
+(define-key minibuffer-local-must-match-map [escape] 'minibuffer-keyboard-quit)
+(define-key minibuffer-local-isearch-map [escape] 'minibuffer-keyboard-quit)
+#+END_SRC
+
+** Navigate visual lines with j and k
+#+BEGIN_SRC emacs-lisp
+(define-key evil-normal-state-map (kbd "j") 'evil-next-visual-line)
+(define-key evil-normal-state-map (kbd "k") 'evil-previous-visual-line)
+#+END_SRC
+
+** Swap 0 and ^, i.e. make 0 move the cursor back to the first non-whitespace character
+#+BEGIN_SRC emacs-lisp
+(define-key evil-motion-state-map (kbd "0") 'evil-first-non-blank)
+(define-key evil-motion-state-map (kbd "^") 'evil-beginning-of-line)
+#+END_SRC
+
+** Evil Leader keybindings
+#+BEGIN_SRC emacs-lisp
+  (evil-leader/set-leader "<SPC>")
+  (evil-leader/set-key
+    "f" 'helm-projectile-find-file
+    "F" 'helm-projectile-ag
+    "q" 'evil-quit
+    "w" 'save-buffer
+    "t" 'neotree-toggle
+    "e" 'emojify-insert-emoji
+    "g" 'magit)
+#+END_SRC
+
+** Evil Leader org keybindings
+#+BEGIN_SRC emacs-lisp
+  (evil-leader/set-key-for-mode 'org-mode
+    "A" 'org-archive-subtree
+    "a" 'org-agenda
+    "c" 'org-capture
+    "d" 'org-deadline
+    "l" 'evil-org-open-links
+    "s" 'org-schedule
+    "t" 'org-todo)
+#+END_SRC
+
+* Org-mode
+#+BEGIN_SRC emacs-lisp
+(setq org-startup-indented t
+      org-ellipsis "  "
+      org-hide-leading-stars t
+      org-src-fontify-natively t
+      org-src-tab-acts-natively t
+      org-pretty-entities t
+      org-hide-emphasis-markers t
+      org-agenda-block-separator ""
+      org-fontify-whole-heading-line t
+      org-fontify-done-headline t
+      org-fontify-quote-and-verse-blocks t)
+#+END_SRC
+
+** Explicitly use org to get the latest version
+#+BEGIN_SRC emacs-lisp
+(use-package org
+:ensure org-plus-contrib)
+#+END_SRC
+
+** Pretty bullets
+#+BEGIN_SRC emacs-lisp
+(use-package org-bullets
+:ensure t
+:config
+(add-hook 'org-mode-hook (lambda () (org-bullets-mode 1))))
+#+END_SRC
+
+** Make agenda show a full-sized screen always
+Usually when I use the agenda I concentrate only on what's inside and I don't need to cross-reference with other windows.
+#+BEGIN_SRC emacs-lisp
+(setq org-agenda-window-setup 'only-window)
+#+END_SRC
+
+** Set the face for ellipses
+Setting the foreground color to ~nil~ causes the ellipsis to take the color of its heading.
+#+BEGIN_SRC emacs-lisp
+(custom-set-faces
+ '(org-ellipsis ((t (:foreground nil)))))
+#+END_SRC
+
+** GTD
+For starters, I'll be using a setup similar to the one specified in [[https://emacs.cafe/emacs/orgmode/gtd/2017/06/30/orgmode-gtd.html][this post by Nicolas Petton]].
+*** Directories for GTD-related stuff
+#+BEGIN_SRC emacs-lisp
+(setq gtd-base-path (expand-file-name "~/Projects/"))
+(defun gtd-path (sub-path) (concat gtd-base-path sub-path))
+(defvar inbox (gtd-path "inbox.org"))
+(defvar projects (gtd-path "projects.org"))
+(defvar someday (gtd-path "someday.org"))
+(defvar tickler (gtd-path "tickler.org"))
+#+END_SRC
+
+*** Specify agenda-relevant files
+#+BEGIN_SRC emacs-lisp
+(setq org-agenda-files (list inbox projects tickler))
+#+END_SRC
+
+*** Set targets for refiling
+#+BEGIN_SRC emacs-lisp
+(setq org-refile-targets `((,projects :maxlevel . 3)
+                           (,someday :level . 1)
+                           (,tickler :maxlevel . 2)))
+#+END_SRC
+
+*** Org-capture templates
+**** Enter insert mode when capturing
+#+BEGIN_SRC emacs-lisp
+(add-hook 'org-capture-mode-hook 'evil-insert-state)
+#+END_SRC
+
+**** Define and register capture templates
+#+BEGIN_SRC emacs-lisp
+(defvar inbox-capture-template "* %i%?")
+(defvar todo-capture-template "* TODO %i%?")
+(defvar tickler-capture-template "* %i%?")
+(setq org-capture-templates `(("i" "Inbox" entry (file+headline inbox "Inbox") ,inbox-capture-template)
+                              ("t" "Inbox [TODO]" entry (file+headline inbox "Inbox") ,todo-capture-template)
+                              ("T" "Tickler" entry (file+headline tickler "Tickler") ,tickler-capture-template)))
+#+END_SRC
+
+*** Keywords for TODOs
+Documentation about tracking state changes in TODOs can be found [[http://orgmode.org/manual/Tracking-TODO-state-changes.html][here]].
+#+BEGIN_SRC emacs-lisp
+(setq org-todo-keywords '((sequence "TODO(t)" "NEXT(n)" "WAITING(w!)" "|" "DONE(d!)" "CANCELLED(c!)")))
+#+END_SRC
+
+**** Log changes into the LOGBOOK and not as text inside the headling
+#+BEGIN_SRC emacs-lisp
+(setq org-log-into-drawer 'LOGBOOK)
+#+END_SRC
+
+**** Color TODO keywords
+Documentation on available colors can be found [[http://raebear.net/comp/emacscolors.html][here]].
+#+BEGIN_SRC emacs-lisp
+(setq org-todo-keyword-faces
+ '(("WAITING" . "grey20") ("CANCELED" . "darkred") ("NEXT" . "orange")))
+#+END_SRC
+
+*** Define tags, a.k.a. contexts
+#+BEGIN_SRC emacs-lisp
+(setq org-tag-alist
+  '(("work" . ?w)
+    ("home" . ?h)
+    ("computer" . ?c)
+    ("phone" . ?p)
+    ("brain" . ?b)
+    ("out" . ?o)))
+#+END_SRC
+
+* Helm & Projectile
+#+BEGIN_SRC emacs-lisp
+  (use-package helm
+    :ensure t
+    :config (helm-mode t))
+  (use-package projectile
+    :ensure projectile
+    :config
+    (setq projectile-indexing-method 'git))
+  (use-package helm-projectile
+    :ensure t)
+  (use-package helm-ag
+    :ensure t)
+#+END_SRC
+
+* Neotree
+#+BEGIN_SRC emacs-lisp
+(use-package neotree :ensure t)
+#+END_SRC
+
+If you use evil-mode, by default some of evil key bindings conflict with neotree-mode keys.
+#+BEGIN_SRC emacs-lisp
+(evil-define-key 'normal neotree-mode-map (kbd "TAB") 'neotree-enter)
+(evil-define-key 'normal neotree-mode-map (kbd "SPC") 'neotree-quick-look)
+(evil-define-key 'normal neotree-mode-map (kbd "q") 'neotree-hide)
+(evil-define-key 'normal neotree-mode-map (kbd "RET") 'neotree-enter)
+#+END_SRC
+
+* Auto-complete
+#+BEGIN_SRC emacs-lisp
+  (use-package company
+    :ensure t
+    :config
+    (global-company-mode t)
+    (setq company-global-modes '(not org-mode)))
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+(define-key company-mode-map (kbd "TAB") 'company-complete)
+#+END_SRC
+
+* Emojify
+#+BEGIN_SRC emacs-lisp
+(use-package emojify
+  :ensure t
+  :init
+    (add-hook 'after-init-hook #'global-emojify-mode)
+    (setq emojify-display-style 'unicode))
+#+END_SRC
+
+* Rainbow delimiters
+#+BEGIN_SRC emacs-lisp
+(use-package rainbow-delimiters
+  :init
+    (add-hook 'web-mode-hook #'rainbow-delimiters-mode)
+    (add-hook 'rust-mode-hook #'rainbow-delimiters-mode))
+#+END_SRC
+
+* Magit
+#+BEGIN_SRC emacs-lisp
+  (use-package magit
+  :ensure t
+  :config (setq magit-diff-refine-hunk 'all))
+#+END_SRC
+
+** evil-collection
+#+BEGIN_SRC emacs-lisp
+(use-package evil-collection
+      :after evil
+      :ensure t
+      :config
+      (evil-collection-init))
+#+END_SRC
+
+* Git gutters
+#+BEGIN_SRC emacs-lisp
+(use-package diff-hl
+  :ensure t
+  :init
+    (setq diff-hl-side 'right))
+(global-diff-hl-mode 1)
+(diff-hl-margin-mode 1)
+(diff-hl-flydiff-mode 1)
+#+END_SRC
+
+* Language-specific
+** Web languages
+*** Web-mode
+Initialize web-mode and recognize extensions. Also consider the possibility of JSX files with a .js extension istead of .jsx.
+#+BEGIN_SRC emacs-lisp
+(use-package web-mode
+  :ensure t
+  :init
+    (setq web-mode-content-types-alist '(("jsx" . "\\.tsx\\'")))
+    (setq web-mode-content-types-alist '(("jsx" . "\\.js\\'")))
+  :config
+    (add-to-list 'auto-mode-alist '("\\.erb?\\'" . web-mode))
+    (add-to-list 'auto-mode-alist '("\\.html?\\'" . web-mode))
+    (add-to-list 'auto-mode-alist '("\\.js[x]?\\'" . web-mode))
+    (add-to-list 'auto-mode-alist '("\\.ts[x]?\\'" . web-mode)))
+#+END_SRC
+
+Add ~node_modules~ path
+#+BEGIN_SRC emacs-lisp
+(use-package add-node-modules-path
+  :ensure t)
+#+END_SRC
+
+Run ~prettier~ on save if web-mode
+#+BEGIN_SRC emacs-lisp
+(eval-after-load 'web-mode
+    '(progn
+       (add-hook 'web-mode-hook #'add-node-modules-path)
+       (add-hook 'web-mode-hook #'prettier-js-mode)))
+#+END_SRC
+
+*** Yaml-mode
+#+BEGIN_SRC emacs-lisp
+(use-package yaml-mode :ensure t)
+#+END_SRC
+
+*** Haml-mode
+#+BEGIN_SRC emacs-lisp
+(use-package haml-mode :ensure t)
+#+END_SRC
+
+*** SCSS-mode
+#+BEGIN_SRC emacs-lisp
+(use-package scss-mode
+  :mode (("\.scss\'" . scss-mode)))
+#+END_SRC
+
+*** TypeScript
+#+BEGIN_SRC emacs-lisp
+(use-package tide
+  :ensure t)
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+  (defun setup-tide-mode ()
+    (interactive)
+    (tide-setup)
+    (flycheck-mode +1)
+    (setq flycheck-check-syntax-automatically '(save mode-enabled))
+    (eldoc-mode +1)
+    (tide-hl-identifier-mode +1)
+    ;; company is an optional dependency. You have to
+    ;; install it separately via package-install
+    ;; `M-x package-install [ret] company`
+    (company-mode +1))
+
+  ;; aligns annotation to the right hand side
+  (setq company-tooltip-align-annotations t)
+
+  (setq tide-tsserver-executable "node_modules/.bin/tsserver")
+
+  (add-hook 'web-mode-hook #'setup-tide-mode)
+#+END_SRC
+
+*** GraphQL
+#+BEGIN_SRC emacs-lisp
+(use-package graphql-mode
+  :ensure t)
+#+END_SRC
+
+** Rust
+#+BEGIN_SRC emacs-lisp
+(use-package rust-mode
+  :ensure t)
+#+END_SRC
+
+** Markdown
+#+BEGIN_SRC emacs-lisp
+(use-package markdown-mode
+  :ensure t
+  :mode (("README\\.md\\'" . gfm-mode)
+         ("\\.md\\'" . markdown-mode)
+         ("\\.markdown\\'" . markdown-mode))
+  :init (setq markdown-command "multimarkdown"))
+#+END_SRC
+
+** TeX
+*** Highlight .tex.tera files as TeX (pape-rs)
+#+BEGIN_SRC emacs-lisp
+(add-to-list 'auto-mode-alist '("\\.tex.tera\\'" . latex-mode))
+#+END_SRC
+
+** Ruby
+Disable adding magit comments in ~ruby-mode~.
+#+BEGIN_SRC emacs-lisp
+(setq ruby-insert-encoding-magic-comment nil)
+#+END_SRC
+
+* Editorconfig
+#+BEGIN_SRC emacs-lisp
+(use-package editorconfig
+  :ensure t
+  :config
+  (editorconfig-mode 1))
+#+END_SRC
+
+* Flycheck
+Flycheck is used for on-the-fly linting. We set the indication mode to nil, because otherwise it conflicts with the line numbers.
+This disables the indicators in the fringe, but still shows the marked errors in the buffer.
+We set a zero delay to show the error message on the status bar below, and set a 0.2 second delay to avoid machine-gunning =eslint=.
+#+BEGIN_SRC emacs-lisp
+  (use-package flycheck
+    :ensure t
+    :init
+  (setq flycheck-indication-mode nil)
+  (setq flycheck-display-errors-delay nil)
+  (setq flycheck-idle-change-delay 2)
+  (global-flycheck-mode))
+#+END_SRC
+
+** Add =eslint= to the available checkers.
+#+BEGIN_SRC emacs-lisp
+(flycheck-add-mode 'javascript-eslint 'web-mode)
+#+END_SRC
+
+Make sure =eslint= does not try to =--print-config= after each buffer opens. Here's a [[https://github.com/flycheck/flycheck/issues/1129][related Flycheck issue]].
+#+BEGIN_SRC emacs-lisp
+(with-eval-after-load 'flycheck
+  (advice-add 'flycheck-eslint-config-exists-p :override (lambda() t)))
+#+END_SRC
+
+** Make sure the =eslint= instance is the one local to the project
+#+BEGIN_SRC emacs-lisp
+(defun my/use-eslint-from-node-modules ()
+  (let* ((root (locate-dominating-file
+                (or (buffer-file-name) default-directory)
+                "node_modules"))
+         (eslint (and root
+                      (expand-file-name "node_modules/eslint/bin/eslint.js"
+                                        root))))
+    (when (and eslint (file-executable-p eslint))
+      (setq-local flycheck-javascript-eslint-executable eslint))))
+(add-hook 'flycheck-mode-hook #'my/use-eslint-from-node-modules)
+#+END_SRC
+
+** Use <leader>[jk] to navigate to the next and previous error
+#+BEGIN_SRC emacs-lisp
+(evil-leader/set-key
+  "j" 'flycheck-next-error
+  "k" 'flycheck-previous-error)
+#+END_SRC
+
+** FZF for fuzzy finder
+#+BEGIN_SRC emacs-lisp
+(use-package fzf
+  :bind
+    ;; Don't forget to set keybinds!
+  :config
+  (setq fzf/args "-x --color bw --print-query --margin=1,0 --no-hscroll"
+        fzf/executable "fzf"
+        fzf/git-grep-args "-i --line-number %s"
+        ;; command used for `fzf-grep-*` functions
+        ;; example usage for ripgrep:
+        ;; fzf/grep-command "rg --no-heading -nH"
+        fzf/grep-command "grep -nrH"
+        ;; If nil, the fzf buffer will appear at the top of the window
+        fzf/position-bottom t
+        fzf/window-height 15))
+#+END_SRC
+
+*Completion
