@@ -103,6 +103,11 @@ included a symlink README.org -> config.org so GitHub renders my config directly
 (setq initial-scratch-message nil)
 #+END_SRC
 
+*** Disable lockfile
+#+BEGIN_SRC emacs-lisp
+(setq create-lockfiles nil)
+#+END_SRC
+
 *** Disable "Text is read-only" warning
 I find it annoying because it makes it hard to find the cursor after it appears.
 Solution found [[https://emacs.stackexchange.com/questions/19742/is-there-a-way-to-disable-the-buffer-is-read-only-warning][on this StackOverflow question]].
@@ -297,7 +302,7 @@ In Delete Selection mode, if the mark is active, just deactivate it then it take
     "F" 'helm-projectile-ag
     "q" 'evil-quit
     "w" 'save-buffer
-    "t" 'neotree-toggle
+    "n" 'neotree-toggle
     "e" 'emojify-insert-emoji
     "g" 'magit)
 #+END_SRC
