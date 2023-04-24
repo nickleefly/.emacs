@@ -437,8 +437,7 @@ Documentation on available colors can be found [[http://raebear.net/comp/emacsco
     :config (helm-mode t))
   (use-package projectile
     :ensure projectile
-    :config
-    (setq projectile-indexing-method 'git))
+    :config)
   (use-package helm-projectile
     :ensure t)
   (use-package helm-ag
@@ -675,6 +674,15 @@ Make sure =eslint= does not try to =--print-config= after each buffer opens. Her
 (evil-leader/set-key
   "j" 'flycheck-next-error
   "k" 'flycheck-previous-error)
+#+END_SRC
+
+** Use which-key
+#+BEGIN_SRC emacs-lisp
+(use-package which-key
+  :ensure t
+  :init
+  (which-key-mode)
+)
 #+END_SRC
 
 ** FZF for fuzzy finder
