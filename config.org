@@ -4,7 +4,7 @@
 #+STARTUP: content
 #+STARTUP: indent
 
-This is my Emacs configuration file. It's built using org-mode. GitHub can render org files and I've
+jhis is my Emacs configuration file. It's built using org-mode. GitHub can render org files and I've
 included a symlink README.org -> config.org so GitHub renders my config directly on the repository page.
 
 * Package management
@@ -78,8 +78,7 @@ included a symlink README.org -> config.org so GitHub renders my config directly
 
 *** Line numbers
 #+BEGIN_SRC emacs-lisp
-(global-linum-mode 1)
-(setq linum-format " %4d ")
+(add-hook 'prog-mode-hook #'display-line-numbers-mode)
 #+END_SRC
 
 [[https://github.com/tom-tan/hlinum-mode][hlinum-mode]] highlights the current line for linum
